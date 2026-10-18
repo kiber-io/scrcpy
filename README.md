@@ -14,6 +14,22 @@ This application mirrors Android devices (video and audio) connected via USB or
 computer's keyboard and mouse. It does not require _root_ access or an app
 installed on the device. It works on _Linux_, _Windows_, and _macOS_.
 
+## Changes in this fork
+
+This unofficial fork adds an optional `--root` mode to capture Android windows
+protected by `FLAG_SECURE`:
+
+```bash
+scrcpy --root
+```
+
+The device must be rooted and provide `su`. In this mode, the device server runs
+as the Android system user (UID 1000). On Android 14 and later, it mirrors the
+screen through a secure virtual display, allowing `FLAG_SECURE` windows that
+appear black in regular mirroring to be shown. This was verified on a Pixel 7
+running Android 16. Hardware DRM-protected video may still appear black.
+Without `--root`, scrcpy uses the usual upstream capture mode.
+
 [![Linux](https://img.shields.io/badge/Linux-download-orange?style=for-the-badge&logo=linux)](doc/linux.md)&nbsp;
 [![Windows](https://img.shields.io/badge/Windows-download-blue?style=for-the-badge&logo=windows)](doc/windows.md)&nbsp;
 [![macOS](https://img.shields.io/badge/macOS-download-brightgreen?style=for-the-badge&logo=apple)](doc/macos.md)&nbsp;
