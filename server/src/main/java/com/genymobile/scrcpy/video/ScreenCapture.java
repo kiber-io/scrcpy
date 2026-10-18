@@ -32,6 +32,7 @@ public class ScreenCapture extends SurfaceCapture {
 
     private final VirtualDisplayListener vdListener;
     private final int displayId;
+    private final boolean secureCapture;
     private final Rect crop;
     private Orientation.Lock captureOrientationLock;
     private Orientation captureOrientation;
@@ -53,6 +54,7 @@ public class ScreenCapture extends SurfaceCapture {
     public ScreenCapture(VirtualDisplayListener vdListener, Options options) {
         this.vdListener = vdListener;
         this.displayId = options.getDisplayId();
+        this.secureCapture = options.getSecureCapture();
         assert displayId != Device.DISPLAY_ID_NONE;
         this.crop = options.getCrop();
         this.captureOrientationLock = options.getCaptureOrientationLock();
@@ -129,31 +131,38 @@ public class ScreenCapture extends SurfaceCapture {
             inputSize = videoSize;
         }
 
-        try {
-            virtualDisplay = ServiceManager.getDisplayManager()
-                    .createVirtualDisplay("scrcpy", inputSize.getWidth(), inputSize.getHeight(), displayId, surface);
-            Ln.d("Display: using DisplayManager API");
-        } catch (Exception displayManagerException) {
-            if (Build.BRAND.equalsIgnoreCase("oculus") && Build.MODEL.toLowerCase(Locale.ROOT).startsWith("quest")) {
-                // Workaround for buggy createVirtualDisplay on Quest
-                try {
-                    virtualDisplay = (VirtualDisplay) VirtualDisplay.class.getDeclaredConstructors()[0].newInstance(null, null, null, surface);
-                } catch (ReflectiveOperationException e) {
-                    Ln.e("Could not create VirtualDisplay", e);
+        Exception displayManagerException = null;
+        if (!secureCapture) {
+            try {
+                virtualDisplay = ServiceManager.getDisplayManager()
+                        .createVirtualDisplay("scrcpy", inputSize.getWidth(), inputSize.getHeight(), displayId, surface);
+                Ln.d("Display: using DisplayManager API");
+            } catch (Exception e) {
+                displayManagerException = e;
+                if (Build.BRAND.equalsIgnoreCase("oculus") && Build.MODEL.toLowerCase(Locale.ROOT).startsWith("quest")) {
+                    // Workaround for buggy createVirtualDisplay on Quest
+                    try {
+                        virtualDisplay = (VirtualDisplay) VirtualDisplay.class.getDeclaredConstructors()[0].newInstance(null, null, null, surface);
+                    } catch (ReflectiveOperationException questException) {
+                        Ln.e("Could not create VirtualDisplay", questException);
+                    }
                 }
-            } else {
-                try {
-                    display = createDisplay();
+            }
+        }
+        if (virtualDisplay == null) {
+            try {
+                display = createDisplay(secureCapture);
 
-                    Size deviceSize = displayInfo.getSize();
-                    int layerStack = displayInfo.getLayerStack();
-                    setDisplaySurface(display, surface, deviceSize.toRect(), inputSize.toRect(), layerStack);
-                    Ln.d("Display: using SurfaceControl API");
-                } catch (Exception surfaceControlException) {
+                Size deviceSize = displayInfo.getSize();
+                int layerStack = displayInfo.getLayerStack();
+                setDisplaySurface(display, surface, deviceSize.toRect(), inputSize.toRect(), layerStack);
+                Ln.d("Display: using SurfaceControl API");
+            } catch (Exception surfaceControlException) {
+                if (displayManagerException != null) {
                     Ln.e("Could not create display using DisplayManager", displayManagerException);
-                    Ln.e("Could not create display using SurfaceControl", surfaceControlException);
-                    throw new AssertionError("Could not create display");
                 }
+                Ln.e("Could not create display using SurfaceControl", surfaceControlException);
+                throw new AssertionError("Could not create display");
             }
         }
 
@@ -207,10 +216,10 @@ public class ScreenCapture extends SurfaceCapture {
         return true;
     }
 
-    private static IBinder createDisplay() throws Exception {
+    private static IBinder createDisplay(boolean secureCapture) throws Exception {
         // Since Android 12 (preview), secure displays could not be created with shell permissions anymore.
         // On Android 12 preview, SDK_INT is still R (not S), but CODENAME is "S".
-        boolean secure = Build.VERSION.SDK_INT < AndroidVersions.API_30_ANDROID_11 || (Build.VERSION.SDK_INT == AndroidVersions.API_30_ANDROID_11
+        boolean secure = secureCapture || Build.VERSION.SDK_INT < AndroidVersions.API_30_ANDROID_11 || (Build.VERSION.SDK_INT == AndroidVersions.API_30_ANDROID_11
                 && !"S".equals(Build.VERSION.CODENAME));
         return SurfaceControl.createDisplay("scrcpy", secure);
     }

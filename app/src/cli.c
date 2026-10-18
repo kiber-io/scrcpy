@@ -111,6 +111,7 @@ enum {
     OPT_RENDER_FIT,
     OPT_IGNORE_VIDEO_ENCODER_CONSTRAINTS,
     OPT_NO_TERMINAL_TITLE,
+    OPT_ROOT,
 };
 
 struct sc_option {
@@ -620,6 +621,12 @@ static const struct sc_option options[] = {
         .longopt_id = OPT_NO_AUDIO_PLAYBACK,
         .longopt = "no-audio-playback",
         .text = "Disable audio playback on the computer.",
+    },
+    {
+        .longopt_id = OPT_ROOT,
+        .longopt = "root",
+        .text = "Run the device server through su and capture secure display "
+                "layers (requires root; DRM content may remain black).",
     },
     {
         .longopt_id = OPT_NO_CLEANUP,
@@ -2748,6 +2755,9 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
                 break;
             case OPT_NO_CLEANUP:
                 opts->cleanup = false;
+                break;
+            case OPT_ROOT:
+                opts->root = true;
                 break;
             case OPT_NO_POWER_ON:
                 opts->power_on = false;

@@ -14,6 +14,7 @@
 #include "util/net_intr.h"
 #include "util/process.h"
 #include "util/str.h"
+#include "util/strbuf.h"
 
 #define SC_SERVER_FILENAME "scrcpy-server"
 
@@ -209,6 +210,7 @@ static sc_pid
 execute_server(struct sc_server *server,
                const struct sc_server_params *params) {
     sc_pid pid = SC_PROCESS_NONE;
+    char *root_command = NULL;
 
     const char *serial = server->serial;
     assert(serial);
@@ -219,6 +221,7 @@ execute_server(struct sc_server *server,
     cmd[count++] = "-s";
     cmd[count++] = serial;
     cmd[count++] = "shell";
+    unsigned server_cmd_idx = count;
     cmd[count++] = "CLASSPATH=" SC_DEVICE_SERVER_PATH;
     cmd[count++] = "app_process";
 
@@ -268,6 +271,9 @@ execute_server(struct sc_server *server,
 
     ADD_PARAM("scid=%08x", params->scid);
     ADD_PARAM("log_level=%s", log_level_to_server_string(params->log_level));
+    if (params->root) {
+        ADD_PARAM("secure_capture=true");
+    }
 
     if (!params->video) {
         ADD_PARAM("video=false");
@@ -458,6 +464,32 @@ execute_server(struct sc_server *server,
 
 #undef ADD_PARAM
 
+    if (params->root) {
+        struct sc_strbuf buf;
+        if (!sc_strbuf_init(&buf, 256)) {
+            goto end;
+        }
+        // adb shell parses the outer quotes; su -c receives one command.
+        bool ok = sc_strbuf_append_char(&buf, '"');
+        for (unsigned i = server_cmd_idx; ok && i < count; ++i) {
+            ok = (i == server_cmd_idx || sc_strbuf_append_char(&buf, ' '))
+                && sc_strbuf_append_str(&buf, cmd[i]);
+        }
+        ok = ok && sc_strbuf_append_char(&buf, '"');
+        if (!ok) {
+            free(buf.s);
+            goto end;
+        }
+        root_command = buf.s;
+        for (unsigned i = dyn_idx; i < count; ++i) {
+            free((char *) cmd[i]);
+        }
+        cmd[server_cmd_idx++] = "su";
+        cmd[server_cmd_idx++] = "-c";
+        cmd[server_cmd_idx++] = root_command;
+        count = server_cmd_idx;
+        dyn_idx = count;
+    }
     cmd[count++] = NULL;
 
 #ifdef SERVER_DEBUGGER
@@ -479,6 +511,7 @@ execute_server(struct sc_server *server,
     pid = sc_adb_execute(cmd, 0);
 
 end:
+    free(root_command);
     for (unsigned i = dyn_idx; i < count; ++i) {
         free((char *) cmd[i]);
     }

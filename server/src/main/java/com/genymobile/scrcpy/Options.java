@@ -41,6 +41,7 @@ public class Options {
     private Rect crop;
     private boolean control = true;
     private int displayId;
+    private boolean secureCapture;
     private String cameraId;
     private Size cameraSize;
     private CameraFacing cameraFacing;
@@ -161,6 +162,10 @@ public class Options {
 
     public int getDisplayId() {
         return displayId;
+    }
+
+    public boolean getSecureCapture() {
+        return secureCapture;
     }
 
     public String getCameraId() {
@@ -424,6 +429,9 @@ public class Options {
                     break;
                 case "display_id":
                     options.displayId = Integer.parseInt(value);
+                    break;
+                case "secure_capture":
+                    options.secureCapture = Boolean.parseBoolean(value);
                     break;
                 case "show_touches":
                     options.showTouches = Boolean.parseBoolean(value);
