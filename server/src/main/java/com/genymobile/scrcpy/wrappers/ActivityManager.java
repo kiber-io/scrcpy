@@ -132,7 +132,7 @@ public final class ActivityManager {
             return (int) method.invoke(
                     /* this */ manager,
                     /* caller */ null,
-                    /* callingPackage */ FakeContext.PACKAGE_NAME,
+                    /* callingPackage */ FakeContext.getProcessPackageName(),
                     /* intent */ intent,
                     /* resolvedType */ null,
                     /* resultTo */ null,

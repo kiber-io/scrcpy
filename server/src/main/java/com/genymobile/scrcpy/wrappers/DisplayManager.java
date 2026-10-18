@@ -247,7 +247,7 @@ public final class DisplayManager {
             try {
                 manager.getClass()
                         .getMethod("registerDisplayListener", displayListenerClass, Handler.class, long.class, String.class)
-                        .invoke(manager, displayListenerProxy, handler, EVENT_FLAG_DISPLAY_CHANGED, FakeContext.PACKAGE_NAME);
+                        .invoke(manager, displayListenerProxy, handler, EVENT_FLAG_DISPLAY_CHANGED, FakeContext.getProcessPackageName());
             } catch (NoSuchMethodException e) {
                 try {
                     manager.getClass()

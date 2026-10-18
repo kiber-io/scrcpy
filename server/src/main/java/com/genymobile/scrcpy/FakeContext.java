@@ -25,6 +25,10 @@ public final class FakeContext extends ContextWrapper {
         return INSTANCE;
     }
 
+    public static String getProcessPackageName() {
+        return Process.myUid() == Process.SYSTEM_UID ? "android" : PACKAGE_NAME;
+    }
+
     private final ContentResolver contentResolver = new ContentResolver(this) {
         @SuppressWarnings({"unused", "ProtectedMemberInFinalClass"})
         // @Override (but super-class method not visible)
@@ -63,19 +67,19 @@ public final class FakeContext extends ContextWrapper {
 
     @Override
     public String getPackageName() {
-        return PACKAGE_NAME;
+        return getProcessPackageName();
     }
 
     @Override
     public String getOpPackageName() {
-        return PACKAGE_NAME;
+        return getPackageName();
     }
 
     @TargetApi(AndroidVersions.API_31_ANDROID_12)
     @Override
     public AttributionSource getAttributionSource() {
-        AttributionSource.Builder builder = new AttributionSource.Builder(Process.SHELL_UID);
-        builder.setPackageName(PACKAGE_NAME);
+        AttributionSource.Builder builder = new AttributionSource.Builder(Process.myUid());
+        builder.setPackageName(getPackageName());
         return builder.build();
     }
 
