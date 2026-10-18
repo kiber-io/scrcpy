@@ -485,6 +485,7 @@ execute_server(struct sc_server *server,
             free((char *) cmd[i]);
         }
         cmd[server_cmd_idx++] = "su";
+        cmd[server_cmd_idx++] = "1000"; // system UID can create secure virtual displays
         cmd[server_cmd_idx++] = "-c";
         cmd[server_cmd_idx++] = root_command;
         count = server_cmd_idx;

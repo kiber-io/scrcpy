@@ -625,8 +625,9 @@ static const struct sc_option options[] = {
     {
         .longopt_id = OPT_ROOT,
         .longopt = "root",
-        .text = "Run the device server through su and capture secure display "
-                "layers (requires root; DRM content may remain black).",
+        .text = "Run the device server as the Android system user via su to "
+                "capture secure display layers (requires root; DRM content "
+                "may remain black).",
     },
     {
         .longopt_id = OPT_NO_CLEANUP,

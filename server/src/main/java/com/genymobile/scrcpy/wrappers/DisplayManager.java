@@ -10,7 +10,9 @@ import com.genymobile.scrcpy.util.Ln;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.hardware.display.VirtualDisplay;
+import android.hardware.display.VirtualDisplayConfig;
 import android.os.Handler;
 import android.view.Display;
 import android.view.Surface;
@@ -171,6 +173,33 @@ public final class DisplayManager {
     public VirtualDisplay createVirtualDisplay(String name, int width, int height, int displayIdToMirror, Surface surface) throws Exception {
         Method method = getCreateVirtualDisplayMethod();
         return (VirtualDisplay) method.invoke(null, name, width, height, displayIdToMirror, surface);
+    }
+
+    public VirtualDisplay createSecureVirtualDisplay(String name, int width, int height, int dpi, int displayIdToMirror, Surface surface)
+            throws Exception {
+        VirtualDisplayConfig.Builder builder = new VirtualDisplayConfig.Builder(name, width, height, dpi)
+                .setFlags(android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE
+                        | android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR)
+                .setSurface(surface);
+        builder.getClass().getMethod("setDisplayIdToMirror", int.class).invoke(builder, displayIdToMirror);
+
+        Constructor<android.hardware.display.DisplayManager> ctor = android.hardware.display.DisplayManager.class.getDeclaredConstructor(
+                Context.class);
+        ctor.setAccessible(true);
+        // The system UID must identify as one of its own packages.
+        Context context = new ContextWrapper(FakeContext.get()) {
+            @Override
+            public String getPackageName() {
+                return "android";
+            }
+
+            @Override
+            public String getOpPackageName() {
+                return "android";
+            }
+        };
+        android.hardware.display.DisplayManager dm = ctor.newInstance(context);
+        return dm.createVirtualDisplay(builder.build());
     }
 
     public VirtualDisplay createNewVirtualDisplay(String name, int width, int height, int dpi, Surface surface, int flags) throws Exception {

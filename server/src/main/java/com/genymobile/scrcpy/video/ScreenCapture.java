@@ -132,7 +132,18 @@ public class ScreenCapture extends SurfaceCapture {
         }
 
         Exception displayManagerException = null;
-        if (!secureCapture) {
+        if (secureCapture && Build.VERSION.SDK_INT >= AndroidVersions.API_34_ANDROID_14) {
+            try {
+                virtualDisplay = ServiceManager.getDisplayManager().createSecureVirtualDisplay("scrcpy", inputSize.getWidth(),
+                        inputSize.getHeight(), displayInfo.getDpi(), displayId, surface);
+                if (virtualDisplay == null) {
+                    throw new IOException("Could not create secure virtual display");
+                }
+                Ln.d("Display: using secure DisplayManager API");
+            } catch (Exception e) {
+                throw new IOException("Could not create secure virtual display", e);
+            }
+        } else if (!secureCapture) {
             try {
                 virtualDisplay = ServiceManager.getDisplayManager()
                         .createVirtualDisplay("scrcpy", inputSize.getWidth(), inputSize.getHeight(), displayId, surface);
