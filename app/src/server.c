@@ -485,6 +485,10 @@ execute_server(struct sc_server *server,
             free((char *) cmd[i]);
         }
         cmd[server_cmd_idx++] = "su";
+        cmd[server_cmd_idx++] = "-g";
+        cmd[server_cmd_idx++] = "1000";
+        cmd[server_cmd_idx++] = "-G";
+        cmd[server_cmd_idx++] = "3011"; // uhid group can open /dev/uhid
         cmd[server_cmd_idx++] = "1000"; // system UID can create secure virtual displays
         cmd[server_cmd_idx++] = "-c";
         cmd[server_cmd_idx++] = root_command;
