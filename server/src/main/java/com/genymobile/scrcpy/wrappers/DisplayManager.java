@@ -175,6 +175,7 @@ public final class DisplayManager {
         return (VirtualDisplay) method.invoke(null, name, width, height, displayIdToMirror, surface);
     }
 
+    @TargetApi(AndroidVersions.API_34_ANDROID_14)
     public VirtualDisplay createSecureVirtualDisplay(String name, int width, int height, int dpi, int displayIdToMirror, Surface surface)
             throws Exception {
         VirtualDisplayConfig.Builder builder = new VirtualDisplayConfig.Builder(name, width, height, dpi)
