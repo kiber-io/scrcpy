@@ -284,20 +284,22 @@ public class ControlMessageReaderTest {
 
     @Test
     public void testParseSetDisplayPower() throws IOException {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        DataOutputStream dos = new DataOutputStream(bos);
-        dos.writeByte(ControlMessage.TYPE_SET_DISPLAY_POWER);
-        dos.writeBoolean(true);
-        byte[] packet = bos.toByteArray();
+        for (int type : new int[]{ControlMessage.TYPE_SET_DISPLAY_POWER, ControlMessage.TYPE_SET_DISPLAY_POWER_ON_START}) {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(bos);
+            dos.writeByte(type);
+            dos.writeBoolean(true);
+            byte[] packet = bos.toByteArray();
 
-        ByteArrayInputStream bis = new ByteArrayInputStream(packet);
-        ControlMessageReader reader = new ControlMessageReader(bis);
+            ByteArrayInputStream bis = new ByteArrayInputStream(packet);
+            ControlMessageReader reader = new ControlMessageReader(bis);
 
-        ControlMessage event = reader.read();
-        Assert.assertEquals(ControlMessage.TYPE_SET_DISPLAY_POWER, event.getType());
-        Assert.assertTrue(event.getOn());
+            ControlMessage event = reader.read();
+            Assert.assertEquals(type, event.getType());
+            Assert.assertTrue(event.getOn());
 
-        Assert.assertEquals(-1, bis.read()); // EOS
+            Assert.assertEquals(-1, bis.read()); // EOS
+        }
     }
 
     @Test

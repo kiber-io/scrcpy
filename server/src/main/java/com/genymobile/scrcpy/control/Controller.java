@@ -95,6 +95,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
     private final boolean clipboardAutosync;
     private final boolean powerOn;
     private final boolean keepActive;
+    private final boolean firstSession;
 
     private final KeyCharacterMap charMap = KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD);
 
@@ -117,6 +118,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
         this.camera = options.getVideoSource() == VideoSource.CAMERA;
         this.controlChannel = controlChannel;
         this.cleanUp = cleanUp;
+        this.firstSession = cleanUp.isFirstSession();
 
         if (this.camera) {
             // Unused for camera
@@ -134,7 +136,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
 
         this.clipboardAutosync = options.getClipboardAutosync();
         this.powerOn = options.getPowerOn();
-        this.keepActive = options.getKeepActive();
+        this.keepActive = cleanUp.isKeepActive();
         initPointers();
         sender = new DeviceMessageSender(controlChannel);
         // UID 1000 can capture secure video, but only shell UID can read clipboard changes in the background.
@@ -232,7 +234,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
 
     private void control() throws IOException {
         // on start, power on the device
-        if (!camera && powerOn && displayId == 0 && !Device.isScreenOn(displayId)) {
+        if (!camera && firstSession && powerOn && displayId == 0 && !Device.isScreenOn(displayId)) {
             Device.pressReleaseKeycode(KeyEvent.KEYCODE_POWER, displayId, Device.INJECT_MODE_ASYNC);
 
             // dirty hack
@@ -399,6 +401,11 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
                     return true;
                 case ControlMessage.TYPE_SET_DISPLAY_POWER:
                     if (supportsInputEvents) {
+                        setDisplayPower(msg.getOn());
+                    }
+                    return true;
+                case ControlMessage.TYPE_SET_DISPLAY_POWER_ON_START:
+                    if (firstSession && supportsInputEvents) {
                         setDisplayPower(msg.getOn());
                     }
                     return true;

@@ -306,6 +306,12 @@ static void test_serialize_set_display_power(void) {
         0x01, // true
     };
     assert(!memcmp(buf, expected, sizeof(expected)));
+
+    msg.type = SC_CONTROL_MSG_TYPE_SET_DISPLAY_POWER_ON_START;
+    size = sc_control_msg_serialize(&msg, buf);
+    assert(size == 2);
+    assert(buf[0] == SC_CONTROL_MSG_TYPE_SET_DISPLAY_POWER_ON_START);
+    assert(buf[1] == 0x01);
 }
 
 static void test_serialize_rotate_device(void) {

@@ -984,7 +984,7 @@ aoa_complete:
     // everything is set up
     if (options->control && options->turn_screen_off) {
         struct sc_control_msg msg;
-        msg.type = SC_CONTROL_MSG_TYPE_SET_DISPLAY_POWER;
+        msg.type = SC_CONTROL_MSG_TYPE_SET_DISPLAY_POWER_ON_START;
         msg.set_display_power.on = false;
 
         if (!sc_controller_push_msg(&s->controller, &msg)) {

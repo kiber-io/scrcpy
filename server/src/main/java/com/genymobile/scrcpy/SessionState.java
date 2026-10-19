@@ -25,6 +25,7 @@ final class SessionState {
     private static final String PATH = "/data/local/tmp/scrcpy-session.state";
     private static final String ACTIVE = "active.";
     private static final String BOOT_ID = "boot_id";
+    private static final String KEEP_ACTIVE = "keep_active";
     private static final String OLD = "old.";
     private static final String POWER_OFF = "power_off.";
     private static final String RESTORE_POWER = "restore_power.";
@@ -32,7 +33,7 @@ final class SessionState {
     private SessionState() {
     }
 
-    static void register(int pid, boolean cleanup, boolean showTouches, boolean stayAwake, int screenOffTimeout, int displayId,
+    static boolean register(int pid, boolean cleanup, boolean showTouches, boolean stayAwake, boolean keepActive, int screenOffTimeout, int displayId,
             int displayImePolicy, boolean powerOffScreen) throws IOException {
         try (RandomAccessFile file = new RandomAccessFile(PATH, "rw"); FileLock ignored = file.getChannel().lock()) {
             Properties state = read(file);
@@ -45,11 +46,13 @@ final class SessionState {
                 }
             }
             removeDeadSessions(state);
-            if (!hasActiveSessions(state)) {
+            boolean firstSession = !hasActiveSessions(state);
+            if (firstSession) {
                 restore(state);
                 state.clear();
+                state.setProperty(KEEP_ACTIVE, String.valueOf(keepActive));
             }
-            if (cleanup) {
+            if (firstSession && cleanup) {
                 if (showTouches) {
                     changeSetting(state, "show_touches", Settings.TABLE_SYSTEM, "show_touches", "1");
                 }
@@ -82,6 +85,7 @@ final class SessionState {
                 state.setProperty(BOOT_ID, bootId);
             }
             write(file, state);
+            return firstSession;
         }
     }
 
@@ -98,6 +102,12 @@ final class SessionState {
                 state.clear();
             }
             write(file, state);
+        }
+    }
+
+    static boolean isKeepActive() throws IOException {
+        try (RandomAccessFile file = new RandomAccessFile(PATH, "rw"); FileLock ignored = file.getChannel().lock()) {
+            return Boolean.parseBoolean(read(file).getProperty(KEEP_ACTIVE));
         }
     }
 

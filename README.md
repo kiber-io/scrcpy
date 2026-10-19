@@ -32,6 +32,8 @@ regular and `--root` sessions. Each instance uses its own device-side server
 file. Device settings are restored, and actions such as
 `--power-off-on-close` run, when the last instance exits. All instances must
 use this fork's updated client and server for this coordination to work.
+Device-wide startup options are taken from the first instance; later instances
+do not reapply them.
 
 [![Linux](https://img.shields.io/badge/Linux-download-orange?style=for-the-badge&logo=linux)](doc/linux.md)&nbsp;
 [![Windows](https://img.shields.io/badge/Windows-download-blue?style=for-the-badge&logo=windows)](doc/windows.md)&nbsp;

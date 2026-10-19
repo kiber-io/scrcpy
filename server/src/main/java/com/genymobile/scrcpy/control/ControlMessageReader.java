@@ -40,7 +40,8 @@ public class ControlMessageReader {
             case ControlMessage.TYPE_SET_CLIPBOARD:
                 return parseSetClipboard();
             case ControlMessage.TYPE_SET_DISPLAY_POWER:
-                return parseSetDisplayPower();
+            case ControlMessage.TYPE_SET_DISPLAY_POWER_ON_START:
+                return parseSetDisplayPower(type);
             case ControlMessage.TYPE_EXPAND_NOTIFICATION_PANEL:
             case ControlMessage.TYPE_EXPAND_SETTINGS_PANEL:
             case ControlMessage.TYPE_COLLAPSE_PANELS:
@@ -144,9 +145,9 @@ public class ControlMessageReader {
         return ControlMessage.createSetClipboard(sequence, text, paste);
     }
 
-    private ControlMessage parseSetDisplayPower() throws IOException {
+    private ControlMessage parseSetDisplayPower(int type) throws IOException {
         boolean on = dis.readBoolean();
-        return ControlMessage.createSetDisplayPower(on);
+        return ControlMessage.createSetDisplayPower(type, on);
     }
 
     private ControlMessage parseUhidCreate() throws IOException {

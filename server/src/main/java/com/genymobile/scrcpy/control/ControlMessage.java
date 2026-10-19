@@ -30,6 +30,7 @@ public final class ControlMessage {
     public static final int TYPE_CAMERA_ZOOM_OUT = 20;
     public static final int TYPE_RESIZE_DISPLAY = 21;
     public static final int TYPE_SCAN_FILE = 22;
+    public static final int TYPE_SET_DISPLAY_POWER_ON_START = 23;
 
     public static final long SEQUENCE_INVALID = 0;
 
@@ -127,9 +128,9 @@ public final class ControlMessage {
         return msg;
     }
 
-    public static ControlMessage createSetDisplayPower(boolean on) {
+    public static ControlMessage createSetDisplayPower(int type, boolean on) {
         ControlMessage msg = new ControlMessage();
-        msg.type = TYPE_SET_DISPLAY_POWER;
+        msg.type = type;
         msg.on = on;
         return msg;
     }

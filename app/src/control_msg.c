@@ -152,6 +152,7 @@ sc_control_msg_serialize(const struct sc_control_msg *msg, uint8_t *buf) {
                                       SC_CONTROL_MSG_CLIPBOARD_TEXT_MAX_LENGTH);
             return 10 + len;
         case SC_CONTROL_MSG_TYPE_SET_DISPLAY_POWER:
+        case SC_CONTROL_MSG_TYPE_SET_DISPLAY_POWER_ON_START:
             buf[1] = msg->set_display_power.on;
             return 2;
         case SC_CONTROL_MSG_TYPE_UHID_CREATE:
@@ -279,6 +280,7 @@ sc_control_msg_log(const struct sc_control_msg *msg) {
                      msg->set_clipboard.text);
             break;
         case SC_CONTROL_MSG_TYPE_SET_DISPLAY_POWER:
+        case SC_CONTROL_MSG_TYPE_SET_DISPLAY_POWER_ON_START:
             LOG_CMSG("display power %s",
                      msg->set_display_power.on ? "on" : "off");
             break;

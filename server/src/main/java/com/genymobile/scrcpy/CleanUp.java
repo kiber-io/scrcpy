@@ -22,6 +22,7 @@ public final class CleanUp {
     private final Thread thread;
     private final CountDownLatch ready = new CountDownLatch(1);
     private IOException startupError;
+    private boolean firstSession;
     private boolean interrupted;
 
     private CleanUp(Options options) {
@@ -52,12 +53,21 @@ public final class CleanUp {
         thread.join();
     }
 
+    public boolean isFirstSession() {
+        return firstSession;
+    }
+
+    public boolean isKeepActive() throws IOException {
+        return SessionState.isKeepActive();
+    }
+
     private void runCleanUp(Options options) {
         String[] cmd = {
                 "app_process", "/", CleanUp.class.getName(),
                 String.valueOf(options.getCleanup()),
                 String.valueOf(options.getShowTouches()),
                 String.valueOf(options.getStayAwake()),
+                String.valueOf(options.getKeepActive()),
                 String.valueOf(options.getScreenOffTimeout()),
                 String.valueOf(options.getDisplayId()),
                 String.valueOf(options.getDisplayImePolicy()),
@@ -67,9 +77,11 @@ public final class CleanUp {
             ProcessBuilder builder = new ProcessBuilder(cmd);
             builder.environment().put("CLASSPATH", Server.SERVER_PATH);
             Process process = builder.start();
-            if (process.getInputStream().read() != 1) {
+            int status = process.getInputStream().read();
+            if (status != 1 && status != 2) {
                 throw new IOException("Cleanup process could not register the session");
             }
+            firstSession = status == 1;
             ready.countDown();
             OutputStream out = process.getOutputStream();
             while (true) {
@@ -137,16 +149,18 @@ public final class CleanUp {
         boolean cleanup = Boolean.parseBoolean(args[0]);
         boolean showTouches = Boolean.parseBoolean(args[1]);
         boolean stayAwake = Boolean.parseBoolean(args[2]);
-        int screenOffTimeout = Integer.parseInt(args[3]);
-        int displayId = Integer.parseInt(args[4]);
-        int displayImePolicy = Integer.parseInt(args[5]);
-        boolean powerOffScreen = Boolean.parseBoolean(args[6]);
+        boolean keepActive = Boolean.parseBoolean(args[3]);
+        int screenOffTimeout = Integer.parseInt(args[4]);
+        int displayId = Integer.parseInt(args[5]);
+        int displayImePolicy = Integer.parseInt(args[6]);
+        boolean powerOffScreen = Boolean.parseBoolean(args[7]);
         int pid = Os.getpid();
 
         try {
-            SessionState.register(pid, cleanup, showTouches, stayAwake, screenOffTimeout, displayId, displayImePolicy, powerOffScreen);
+            boolean firstSession = SessionState.register(pid, cleanup, showTouches, stayAwake, keepActive, screenOffTimeout, displayId, displayImePolicy,
+                    powerOffScreen);
             FileOutputStream ready = new FileOutputStream(FileDescriptor.out);
-            ready.write(1);
+            ready.write(firstSession ? 1 : 2);
             ready.flush();
         } catch (IOException e) {
             Ln.e("Could not register scrcpy session", e);
