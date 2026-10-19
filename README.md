@@ -20,10 +20,11 @@ scrcpy --root
 
 The device must be rooted and provide `su` with `-g` and `-G` support. In this
 mode, the device server runs as the Android system user (UID 1000) with access
-to the `uhid` group for HID input. On Android 14 and later, it mirrors the
-screen through a secure virtual display, allowing `FLAG_SECURE` windows that
-appear black in regular mirroring to be shown. This was verified on a Pixel 7
-running Android 16. Hardware DRM-protected video may still appear black.
+to the `uhid` group for HID input. A separate shell user process keeps Android
+clipboard changes synchronized to the computer. On Android 14 and later, it
+mirrors the screen through a secure virtual display, allowing `FLAG_SECURE`
+windows that appear black in regular mirroring to be shown. This was verified
+on a Pixel 7 running Android 16. Hardware DRM-protected video may still appear black.
 Without `--root`, scrcpy uses the usual upstream capture mode.
 
 [![Linux](https://img.shields.io/badge/Linux-download-orange?style=for-the-badge&logo=linux)](doc/linux.md)&nbsp;

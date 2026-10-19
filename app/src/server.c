@@ -543,6 +543,18 @@ connect_and_read_byte(struct sc_intr *intr, sc_socket socket,
     return true;
 }
 
+static sc_pid
+execute_clipboard_helper(const char *serial, uint32_t scid) {
+    char id[9];
+    snprintf(id, sizeof(id), "%08x", scid);
+    const char *cmd[] = {
+        sc_adb_get_executable(), "-s", serial, "shell",
+        "CLASSPATH=" SC_DEVICE_SERVER_PATH, "app_process", "/",
+        "com.genymobile.scrcpy.control.ClipboardRelay", id, NULL,
+    };
+    return sc_adb_execute(cmd, 0);
+}
+
 static sc_socket
 connect_to_server(struct sc_server *server, unsigned attempts, sc_tick delay,
                   uint32_t host, uint16_t port) {
@@ -1156,6 +1168,15 @@ run_server(void *data) {
         goto error_connection_failed;
     }
 
+    sc_pid clipboard_pid = SC_PROCESS_NONE;
+    if (params->root && params->control && params->clipboard_autosync
+            && params->video_source == SC_VIDEO_SOURCE_DISPLAY) {
+        clipboard_pid = execute_clipboard_helper(serial, params->scid);
+        if (clipboard_pid == SC_PROCESS_NONE) {
+            LOGE("Could not start clipboard helper");
+        }
+    }
+
     // Now connected
     server->cbs->on_connected(server, server->cbs_userdata);
 
@@ -1203,6 +1224,11 @@ run_server(void *data) {
     sc_process_observer_destroy(&observer);
 
     sc_process_close(pid);
+
+    if (clipboard_pid != SC_PROCESS_NONE) {
+        sc_process_terminate(clipboard_pid);
+        sc_process_wait(clipboard_pid, true); // ignore exit code
+    }
 
     sc_server_kill_adb_if_requested(server);
 

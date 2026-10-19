@@ -194,7 +194,7 @@ public final class Server {
         }
     }
 
-    private static void prepareMainLooper() {
+    public static void prepareMainLooper() {
         // Like Looper.prepareMainLooper(), but with quitAllowed set to true
         Looper.prepare();
         synchronized (Looper.class) {

@@ -91,6 +91,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
     private final ControlChannel controlChannel;
     private final CleanUp cleanUp;
     private final DeviceMessageSender sender;
+    private final ClipboardRelay clipboardRelay;
     private final boolean clipboardAutosync;
     private final boolean powerOn;
     private final boolean keepActive;
@@ -112,7 +113,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
     // Used for resetting video encoding on RESET_VIDEO message or for sending camera controls
     private SurfaceCapture surfaceCapture;
 
-    public Controller(ControlChannel controlChannel, CleanUp cleanUp, Options options) {
+    public Controller(ControlChannel controlChannel, CleanUp cleanUp, Options options) throws IOException {
         this.camera = options.getVideoSource() == VideoSource.CAMERA;
         this.controlChannel = controlChannel;
         this.cleanUp = cleanUp;
@@ -122,6 +123,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
             this.displayId = Device.DISPLAY_ID_NONE;
             this.supportsInputEvents = false;
             this.sender = null;
+            this.clipboardRelay = null;
             this.clipboardAutosync = false;
             this.powerOn = false;
             this.keepActive = false;
@@ -135,6 +137,8 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
         this.keepActive = options.getKeepActive();
         initPointers();
         sender = new DeviceMessageSender(controlChannel);
+        // UID 1000 can capture secure video, but only shell UID can read clipboard changes in the background.
+        clipboardRelay = clipboardAutosync && options.getSecureCapture() ? new ClipboardRelay(options.getScid(), sender) : null;
 
         supportsInputEvents = Device.supportsInputEvents(displayId);
         if (!supportsInputEvents) {
@@ -143,7 +147,7 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
 
         // Make sure the clipboard manager is always created from the main thread (even if clipboardAutosync is disabled)
         ClipboardManager clipboardManager = ServiceManager.getClipboardManager();
-        if (clipboardAutosync) {
+        if (clipboardAutosync && clipboardRelay == null) {
             // If control and autosync are enabled, synchronize Android clipboard to the computer automatically
             if (clipboardManager != null) {
                 clipboardManager.addPrimaryClipChangedListener(() -> {
@@ -293,6 +297,9 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
         if (sender != null) {
             sender.start();
         }
+        if (clipboardRelay != null) {
+            clipboardRelay.start();
+        }
     }
 
     @Override
@@ -306,12 +313,18 @@ public class Controller implements AsyncProcessor, VirtualDisplayListener {
         if (sender != null) {
             sender.stop();
         }
+        if (clipboardRelay != null) {
+            clipboardRelay.stop();
+        }
     }
 
     @Override
     public void join() throws InterruptedException {
         if (thread != null) {
             thread.join();
+        }
+        if (clipboardRelay != null) {
+            clipboardRelay.join();
         }
         if (sender != null) {
             sender.join();
