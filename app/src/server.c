@@ -19,7 +19,8 @@
 #define SC_SERVER_FILENAME "scrcpy-server"
 
 #define SC_SERVER_PATH_DEFAULT PREFIX "/share/scrcpy/" SC_SERVER_FILENAME
-#define SC_DEVICE_SERVER_PATH "/data/local/tmp/scrcpy-server.jar"
+#define SC_DEVICE_SERVER_PATH_PREFIX "/data/local/tmp/scrcpy-server-"
+#define SC_DEVICE_SESSION_STATE_PATH "/data/local/tmp/scrcpy-session.state"
 
 #define SC_ADB_PORT_DEFAULT 5555
 #define SC_SOCKET_NAME_PREFIX "scrcpy_"
@@ -55,7 +56,8 @@ get_server_path(void) {
 }
 
 static bool
-push_server(struct sc_intr *intr, const char *serial) {
+push_server(struct sc_intr *intr, const char *serial,
+            const char *device_server_path) {
     char *server_path = get_server_path();
     if (!server_path) {
         return false;
@@ -65,9 +67,31 @@ push_server(struct sc_intr *intr, const char *serial) {
         free(server_path);
         return false;
     }
-    bool ok = sc_adb_push(intr, serial, server_path, SC_DEVICE_SERVER_PATH, 0);
+    bool ok = sc_adb_push(intr, serial, server_path, device_server_path, 0);
     free(server_path);
     return ok;
+}
+
+static bool
+prepare_session_state(const char *serial) {
+    const char *const commands[][9] = {
+        {sc_adb_get_executable(), "-s", serial, "shell", "touch",
+         SC_DEVICE_SESSION_STATE_PATH, NULL},
+        {sc_adb_get_executable(), "-s", serial, "shell", "chmod", "666",
+         SC_DEVICE_SESSION_STATE_PATH, NULL},
+    };
+    for (unsigned i = 0; i < 2; ++i) {
+        sc_pid pid = sc_adb_execute(commands[i], 0);
+        if (pid == SC_PROCESS_NONE) {
+            return false;
+        }
+        sc_exit_code exit_code = sc_process_wait(pid, true);
+        if (exit_code != 0) {
+            LOGE("Could not prepare shared session state on device");
+            return false;
+        }
+    }
+    return true;
 }
 
 static const char *
@@ -208,7 +232,8 @@ validate_string(const char *s) {
 
 static sc_pid
 execute_server(struct sc_server *server,
-               const struct sc_server_params *params) {
+               const struct sc_server_params *params,
+               const char *device_server_path) {
     sc_pid pid = SC_PROCESS_NONE;
     char *root_command = NULL;
 
@@ -222,14 +247,19 @@ execute_server(struct sc_server *server,
     cmd[count++] = serial;
     cmd[count++] = "shell";
     unsigned server_cmd_idx = count;
-    cmd[count++] = "CLASSPATH=" SC_DEVICE_SERVER_PATH;
+    char *classpath = NULL;
+    if (asprintf(&classpath, "CLASSPATH=%s", device_server_path) == -1) {
+        return SC_PROCESS_NONE;
+    }
+    cmd[count++] = classpath;
     cmd[count++] = "app_process";
 
 #ifdef SERVER_DEBUGGER
     uint16_t sdk_version = sc_adb_get_device_sdk_version(&server->intr, serial);
     if (!sdk_version) {
         LOGE("Could not determine SDK version");
-        return 0;
+        free(classpath);
+        return SC_PROCESS_NONE;
     }
 
 # define SERVER_DEBUGGER_PORT "5005"
@@ -517,6 +547,7 @@ execute_server(struct sc_server *server,
 
 end:
     free(root_command);
+    free(classpath);
     for (unsigned i = dyn_idx; i < count; ++i) {
         free((char *) cmd[i]);
     }
@@ -544,15 +575,22 @@ connect_and_read_byte(struct sc_intr *intr, sc_socket socket,
 }
 
 static sc_pid
-execute_clipboard_helper(const char *serial, uint32_t scid) {
+execute_clipboard_helper(const char *serial, uint32_t scid,
+                         const char *device_server_path) {
     char id[9];
     snprintf(id, sizeof(id), "%08x", scid);
+    char *classpath;
+    if (asprintf(&classpath, "CLASSPATH=%s", device_server_path) == -1) {
+        return SC_PROCESS_NONE;
+    }
     const char *cmd[] = {
         sc_adb_get_executable(), "-s", serial, "shell",
-        "CLASSPATH=" SC_DEVICE_SERVER_PATH, "app_process", "/",
+        classpath, "app_process", "/",
         "com.genymobile.scrcpy.control.ClipboardRelay", id, NULL,
     };
-    return sc_adb_execute(cmd, 0);
+    sc_pid pid = sc_adb_execute(cmd, 0);
+    free(classpath);
+    return pid;
 }
 
 static sc_socket
@@ -1102,7 +1140,14 @@ run_server(void *data) {
     assert(serial);
     LOGD("Device serial: %s", serial);
 
-    ok = push_server(&server->intr, serial);
+    if (!params->list && !prepare_session_state(serial)) {
+        goto error_connection_failed;
+    }
+
+    char device_server_path[sizeof(SC_DEVICE_SERVER_PATH_PREFIX) + 8 + 4];
+    snprintf(device_server_path, sizeof(device_server_path),
+             SC_DEVICE_SERVER_PATH_PREFIX "%08x.jar", params->scid);
+    ok = push_server(&server->intr, serial, device_server_path);
     if (!ok) {
         goto error_connection_failed;
     }
@@ -1110,7 +1155,7 @@ run_server(void *data) {
     // If --list-* is passed, then the server just prints the requested data
     // then exits.
     if (params->list) {
-        sc_pid pid = execute_server(server, params);
+        sc_pid pid = execute_server(server, params, device_server_path);
         if (pid == SC_PROCESS_NONE) {
             goto error_connection_failed;
         }
@@ -1138,7 +1183,7 @@ run_server(void *data) {
     }
 
     // server will connect to our server socket
-    sc_pid pid = execute_server(server, params);
+    sc_pid pid = execute_server(server, params, device_server_path);
     if (pid == SC_PROCESS_NONE) {
         sc_adb_tunnel_close(&server->tunnel, &server->intr, serial,
                             server->device_socket_name);
@@ -1171,7 +1216,8 @@ run_server(void *data) {
     sc_pid clipboard_pid = SC_PROCESS_NONE;
     if (params->root && params->control && params->clipboard_autosync
             && params->video_source == SC_VIDEO_SOURCE_DISPLAY) {
-        clipboard_pid = execute_clipboard_helper(serial, params->scid);
+        clipboard_pid = execute_clipboard_helper(serial, params->scid,
+                                                 device_server_path);
         if (clipboard_pid == SC_PROCESS_NONE) {
             LOGE("Could not start clipboard helper");
         }

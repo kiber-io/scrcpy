@@ -85,11 +85,7 @@ public final class Server {
             }
         }
 
-        CleanUp cleanUp = null;
-
-        if (options.getCleanup()) {
-            cleanUp = CleanUp.start(options);
-        }
+        CleanUp cleanUp = CleanUp.start(options);
 
         int scid = options.getScid();
         boolean tunnelForward = options.isTunnelForward();

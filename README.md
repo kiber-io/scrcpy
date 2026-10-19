@@ -27,6 +27,12 @@ windows that appear black in regular mirroring to be shown. This was verified
 on a Pixel 7 running Android 16. Hardware DRM-protected video may still appear black.
 Without `--root`, scrcpy uses the usual upstream capture mode.
 
+Multiple instances may mirror the same device at once, including a mix of
+regular and `--root` sessions. Each instance uses its own device-side server
+file. Device settings are restored, and actions such as
+`--power-off-on-close` run, when the last instance exits. All instances must
+use this fork's updated client and server for this coordination to work.
+
 [![Linux](https://img.shields.io/badge/Linux-download-orange?style=for-the-badge&logo=linux)](doc/linux.md)&nbsp;
 [![Windows](https://img.shields.io/badge/Windows-download-blue?style=for-the-badge&logo=windows)](doc/windows.md)&nbsp;
 [![macOS](https://img.shields.io/badge/macOS-download-brightgreen?style=for-the-badge&logo=apple)](doc/macos.md)&nbsp;
